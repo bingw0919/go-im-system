@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 type User struct {
@@ -63,6 +64,25 @@ func (u *User) DoMessage(msg string) {
 			u.server.mapLock.Unlock()
 			u.SendMessage("update new name is succeed\n")
 		}
+	} else if len(msg) > 1 && msg[0] == '@' {
+		//私聊消息 @name message
+		arr := strings.Split(msg, " ")
+		if len(arr) != 2 {
+			u.SendMessage("Invalid command")
+			return
+		}
+		message := arr[1]
+		if message == "" {
+			u.SendMessage("content is empty")
+			return
+		}
+		name := arr[0][1:]
+		if remoteUser, ok := u.server.OnlineMap[name]; !ok {
+			u.SendMessage("user not exist\n")
+			return
+		} else {
+			remoteUser.SendMessage(u.Name + "@you:" + message)
+		}
 	} else {
 		u.server.BroadCast(u, msg)
 	}
@@ -88,6 +108,7 @@ func (u *User) ListenMessage() {
 		msg := <-u.C
 		fmt.Println("write msg:" + msg)
 		_, err := u.conn.Write([]byte(msg + "\n"))
+
 		if err != nil {
 			fmt.Println("ListenMessage write error: ", err)
 		}

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -51,6 +52,8 @@ func (s *Server) Handler(conn net.Conn) {
 	//用户上线，将用户加入到onlineMap
 	user := NewUser(conn, s)
 	user.Online()
+	//监听用户是否活跃
+	isLive := make(chan bool)
 	//接受客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -65,10 +68,27 @@ func (s *Server) Handler(conn net.Conn) {
 			}
 			msg := string(buf[:n-1])
 			user.DoMessage(msg)
+			isLive <- true
 		}
 	}()
 	//当前handler阻塞
-	select {}
+	for {
+		select {
+		case <-isLive:
+			//用户活跃，重置定时器
+		case <-time.After(time.Second * 1000):
+			//已超时
+			user.SendMessage("you are ticked out!\n")
+			close(user.C)
+
+			err := user.conn.Close()
+			if err != nil {
+				fmt.Println("user conn close error: ", err)
+			}
+			return
+		}
+
+	}
 }
 
 // Start 启动服务器的接口
