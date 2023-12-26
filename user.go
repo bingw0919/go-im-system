@@ -41,13 +41,28 @@ func (u *User) DoMessage(msg string) {
 	if msg == "who" {
 		//查询当前所有用户
 		u.server.mapLock.Lock()
-		onlineCount := fmt.Sprintf("there is  %d person online ....", len(u.server.OnlineMap))
+		onlineCount := fmt.Sprintf("there is  %d person online ....\n", len(u.server.OnlineMap))
 		u.SendMessage(onlineCount)
 		for _, cli := range u.server.OnlineMap {
-			sendMsg := "[" + cli.Addr + "]" + cli.Name + "online、、、、、、"
+			sendMsg := "[" + cli.Addr + "]" + cli.Name + "online、、、、、、、\n"
 			u.SendMessage(sendMsg)
 		}
 		u.server.mapLock.Unlock()
+	} else if len(msg) > 7 && msg[:7] == "rename|" {
+		//消息格式 rename|name
+		newName := msg[7:]
+		//判断newName是否已经存在
+		if _, ok := u.server.OnlineMap[newName]; ok {
+			u.SendMessage("new name is exist\n")
+			return
+		} else {
+			u.server.mapLock.Lock()
+			delete(u.server.OnlineMap, u.Name)
+			u.Name = newName
+			u.server.OnlineMap[newName] = u
+			u.server.mapLock.Unlock()
+			u.SendMessage("update new name is succeed\n")
+		}
 	} else {
 		u.server.BroadCast(u, msg)
 	}
